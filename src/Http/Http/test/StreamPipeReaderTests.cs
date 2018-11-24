@@ -4,6 +4,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Text;
@@ -398,9 +399,45 @@ namespace Microsoft.AspNetCore.Http.Tests
             Assert.Equal(1, pool.GetRentCount());
         }
 
+        [Fact]
+        public async Task AsyncReadWorks()
+        {
+            MemoryStream = new AsyncStream();
+            Reader = new StreamPipeReader(MemoryStream, 16, new TestMemoryPool());
+            Write(Encoding.ASCII.GetBytes(new string('a', 10000)));
+
+            for (var i = 0; i < 99; i++)
+            {
+                var readResult = await Reader.ReadAsync();
+                Reader.AdvanceTo(readResult.Buffer.Start, readResult.Buffer.End);
+            }
+
+            var result = await Reader.ReadAsync();
+            Assert.Equal(1600, result.Buffer.Length);
+            Reader.AdvanceTo(result.Buffer.End);
+        }
+
         private bool IsTaskWithResult<T>(ValueTask<T> task)
         {
             return task == new ValueTask<T>(task.Result);
+        }
+
+        private class AsyncStream : MemoryStream
+        {
+            private static byte[] bytes = Encoding.ASCII.GetBytes("Hello World");
+            public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                await Task.Yield();
+                return await base.ReadAsync(buffer, offset, count, cancellationToken);
+            }
+
+#if NETCOREAPP2_2
+            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                await Task.Yield();
+                return await base.ReadAsync(buffer, cancellationToken);
+            }
+#endif
         }
     }
 }

@@ -13,12 +13,14 @@ namespace Microsoft.AspNetCore.Http
     {
         private StreamPipeReader _pipeReaderNoop;
         private StreamPipeReader _pipeReaderHelloWorld;
+        private StreamPipeReader _pipeReaderHelloWorldAync;
 
         [IterationSetup]
         public void Setup()
         {
             _pipeReaderNoop = new StreamPipeReader(new NoopStream());
             _pipeReaderHelloWorld = new StreamPipeReader(new HelloWorldStream());
+            _pipeReaderHelloWorldAync = new StreamPipeReader(new HelloWorldAsyncStream());
         }
 
         [Benchmark]
@@ -32,6 +34,13 @@ namespace Microsoft.AspNetCore.Http
         {
             var result = await _pipeReaderHelloWorld.ReadAsync();
             _pipeReaderHelloWorld.AdvanceTo(result.Buffer.End);
+        }
+
+        [Benchmark]
+        public async Task ReadHelloWorldAsync()
+        {
+            var result = await _pipeReaderHelloWorldAync.ReadAsync();
+            _pipeReaderHelloWorldAync.AdvanceTo(result.Buffer.End);
         }
 
         private class HelloWorldStream : NoopStream
@@ -48,6 +57,24 @@ namespace Microsoft.AspNetCore.Http
                 bytes.CopyTo(buffer);
 
                 return new ValueTask<int>(11);
+            }
+        }
+
+        private class HelloWorldAsyncStream : NoopStream
+        {
+            private static byte[] bytes = Encoding.ASCII.GetBytes("Hello World");
+            public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                await Task.Yield();
+                bytes.CopyTo(buffer, 0);
+                return 11;
+            }
+
+            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                await Task.Yield();
+                bytes.CopyTo(buffer);
+                return 11;
             }
         }
     }
