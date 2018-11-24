@@ -25,7 +25,6 @@ namespace Microsoft.AspNetCore.Http
         private CancellationTokenSource _internalTokenSource;
         private bool _isCompleted;
         private ExceptionDispatchInfo _exceptionInfo;
-        private object lockObject = new object();
 
         private BufferSegment _readHead;
         private int _readIndex;
@@ -36,17 +35,9 @@ namespace Microsoft.AspNetCore.Http
 
         private CancellationTokenSource InternalTokenSource
         {
-            get
-            {
-                lock (lockObject)
-                {
-                    if (_internalTokenSource == null)
-                    {
-                        _internalTokenSource = new CancellationTokenSource();
-                    }
-                    return _internalTokenSource;
-                }
-            }
+            get => _internalTokenSource
+                            ?? Interlocked.CompareExchange(ref _internalTokenSource, new CancellationTokenSource(), null)
+                            ?? _internalTokenSource;
         }
 
         /// <summary>
@@ -83,9 +74,8 @@ namespace Microsoft.AspNetCore.Http
 
             if (_readHead == null || _commitHead == null)
             {
-                throw new InvalidOperationException("No data has been read into the StreamPipeReader.");
+                ThrowHelper.ThrowInvalidOperationException_NoDataRead();
             }
-
             // Creating consumedSequence will throw an ArgumentOutOfRangeException if consumed/examined are invalid.
             // We want the same check for netstandard too.
             // TODO this is significantly slower than just calling AdvanceTo().
@@ -114,7 +104,7 @@ namespace Microsoft.AspNetCore.Http
 
             var returnStart = _readHead;
             var returnEnd = consumedSegment;
-                
+
             var consumedBytes = new ReadOnlySequence<byte>(returnStart, _readIndex, consumedSegment, consumedIndex).Length;
 
             _consumedLength -= consumedBytes;
@@ -227,7 +217,7 @@ namespace Microsoft.AspNetCore.Http
 #elif NETSTANDARD2_0
                     if (!MemoryMarshal.TryGetArray<byte>(_commitHead.AvailableMemory, out var arraySegment))
                     {
-                        throw new InvalidCastException("Could not get byte[] from Memory.");
+                        ThrowHelper.ThrowInvalidCastException_NoArrayFromMemory();
                     }
 
                     var length = await _readingStream.ReadAsync(arraySegment.Array, 0, arraySegment.Count, tokenSource.Token);
@@ -253,19 +243,13 @@ namespace Microsoft.AspNetCore.Http
             }
         }
 
-        private void ClearOutCancellation()
-        {
-            lock (lockObject)
-            {
-                _internalTokenSource = null;
-            }
-        }
+        private void ClearOutCancellation() => Interlocked.Exchange(ref _internalTokenSource, null);
 
         private void ThrowIfCompleted()
         {
             if (_isCompleted)
             {
-                throw new InvalidOperationException("Reading is not allowed after reader was completed.");
+                ThrowHelper.ThrowInvalidOperationException_NoReadingAllowed();
             }
         }
 
