@@ -58,13 +58,12 @@ namespace System.IO.Pipelines
             SetMemory(memoryOwner, 0, 0);
         }
 
-        public void SetMemory(IMemoryOwner<byte> memoryOwner, int start, int end, bool readOnly = false)
+        public void SetMemory(IMemoryOwner<byte> memoryOwner, int start, int end)
         {
             _memoryOwner = memoryOwner;
 
             AvailableMemory = _memoryOwner.Memory;
 
-            ReadOnly = readOnly;
             RunningIndex = 0;
             Start = start;
             End = end;
@@ -83,12 +82,6 @@ namespace System.IO.Pipelines
         public Memory<byte> AvailableMemory { get; private set; }
 
         public int Length => End - Start;
-
-        /// <summary>
-        /// If true, data should not be written into the backing block after the End offset. Data between start and end should never be modified
-        /// since this would break cloning.
-        /// </summary>
-        public bool ReadOnly { get; private set; }
 
         /// <summary>
         /// The amount of writable bytes in this segment. It is the amount of bytes between Length and End
