@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -16,11 +16,18 @@ namespace Microsoft.AspNetCore.Http.Tests
         private MemoryPool<byte> _pool = Shared;
 
         private bool _disposed;
+        private int _rentCount;
 
         public override IMemoryOwner<byte> Rent(int minBufferSize = -1)
         {
             CheckDisposed();
+            _rentCount++;
             return new PooledMemory(_pool.Rent(minBufferSize), this);
+        }
+
+        public int GetRentCount()
+        {
+            return _rentCount;
         }
 
         protected override void Dispose(bool disposing)
@@ -65,6 +72,7 @@ namespace Microsoft.AspNetCore.Http.Tests
 
             protected override void Dispose(bool disposing)
             {
+                _pool._rentCount--;
                 _pool.CheckDisposed();
             }
 

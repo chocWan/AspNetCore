@@ -379,6 +379,25 @@ namespace Microsoft.AspNetCore.Http.Tests
             Assert.Equal(6192, readResult3.Buffer.Length);
         }
 
+        [Fact]
+        public async Task ReadMultipleTimesAdvanceFreesAppropriately()
+        {
+            var blockSize = 16;
+            var pool = new TestMemoryPool();
+            Reader = new StreamPipeReader(MemoryStream, blockSize, pool);
+            Write(Encoding.ASCII.GetBytes(new string('a', 10000)));
+
+            for (var i = 0; i < 99; i++)
+            {
+                var readResult = await Reader.ReadAsync();
+                Reader.AdvanceTo(readResult.Buffer.Start, readResult.Buffer.End);
+            }
+
+            var result = await Reader.ReadAsync();
+            Reader.AdvanceTo(result.Buffer.End);
+            Assert.Equal(1, pool.GetRentCount());
+        }
+
         private bool IsTaskWithResult<T>(ValueTask<T> task)
         {
             return task == new ValueTask<T>(task.Result);
