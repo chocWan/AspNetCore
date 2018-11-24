@@ -29,7 +29,7 @@ namespace Microsoft.AspNetCore.Http
         private BufferSegment _readHead;
         private int _readIndex;
 
-        private BufferSegment _commitHead;
+        private BufferSegment _readTail;
         private long _consumedLength;
         private bool _examinedEverything;
 
@@ -72,7 +72,7 @@ namespace Microsoft.AspNetCore.Http
         {
             ThrowIfCompleted();
 
-            if (_readHead == null || _commitHead == null)
+            if (_readHead == null || _readTail == null)
             {
                 ThrowHelper.ThrowInvalidOperationException_NoDataRead();
             }
@@ -111,12 +111,12 @@ namespace Microsoft.AspNetCore.Http
 
             _examinedEverything = false;
 
-            if (examinedSegment == _commitHead)
+            if (examinedSegment == _readTail)
             {
                 // If we examined everything, we force ReadAsync to actually read from the underlying stream
                 // instead of returning a ReadResult from TryRead.
                 // TODO do we care about covering if examinedSegment past end of sequence.
-                _examinedEverything = _commitHead != null ? examinedIndex == _commitHead.End - _commitHead.Start : examinedIndex == 0;
+                _examinedEverything = _readTail != null ? examinedIndex == _readTail.End - _readTail.Start : examinedIndex == 0;
             }
 
             // Three cases here:
@@ -128,9 +128,9 @@ namespace Microsoft.AspNetCore.Http
             //  Move _readHead and _readIndex to consumedSegment and index
             if (_consumedLength == 0)
             {
-                _commitHead.SetMemory(_commitHead.MemoryOwner);
-                _readHead = _commitHead;
-                returnEnd = _commitHead;
+                _readTail.SetMemory(_readTail.MemoryOwner);
+                _readHead = _readTail;
+                returnEnd = _readTail;
                 _readIndex = 0;
             }
             else if (consumedIndex == returnEnd.Length)
@@ -213,9 +213,9 @@ namespace Microsoft.AspNetCore.Http
                 {
                     AllocateCommitHead();
 #if NETCOREAPP2_2
-                    var length = await _readingStream.ReadAsync(_commitHead.AvailableMemory, tokenSource.Token);
+                    var length = await _readingStream.ReadAsync(_readTail.AvailableMemory, tokenSource.Token);
 #elif NETSTANDARD2_0
-                    if (!MemoryMarshal.TryGetArray<byte>(_commitHead.AvailableMemory, out var arraySegment))
+                    if (!MemoryMarshal.TryGetArray<byte>(_readTail.AvailableMemory, out var arraySegment))
                     {
                         ThrowHelper.ThrowInvalidCastException_NoArrayFromMemory();
                     }
@@ -224,7 +224,7 @@ namespace Microsoft.AspNetCore.Http
 #else
 #error Target frameworks need to be updated.
 #endif
-                    _commitHead.End += length;
+                    _readTail.End += length;
                     _consumedLength += length;
                 }
                 catch (OperationCanceledException)
@@ -287,15 +287,15 @@ namespace Microsoft.AspNetCore.Http
 
         private ReadOnlySequence<byte> GetCurrentReadOnlySequence()
         {
-            return new ReadOnlySequence<byte>(_readHead, _readIndex, _commitHead, _commitHead.End - _commitHead.Start);
+            return new ReadOnlySequence<byte>(_readHead, _readIndex, _readTail, _readTail.End - _readTail.Start);
         }
 
         private void AllocateCommitHead()
         {
             BufferSegment segment;
-            if (_commitHead != null)
+            if (_readTail != null)
             {
-                segment = _commitHead;
+                segment = _readTail;
                 var bytesLeftInBuffer = segment.WritableBytes;
                 // Check if we need create a new segment (if we need more data to read)
                 if (bytesLeftInBuffer == 0 || segment.ReadOnly)
@@ -303,19 +303,19 @@ namespace Microsoft.AspNetCore.Http
                     var nextSegment = CreateSegmentUnsynchronized();
                     nextSegment.SetMemory(_pool.Rent(GetSegmentSize()));
                     segment.SetNext(nextSegment);
-                    _commitHead = nextSegment;
+                    _readTail = nextSegment;
                 }
             }
             else
             {
-                if (_readHead != null && !_commitHead.ReadOnly)
+                if (_readHead != null && !_readTail.ReadOnly)
                 {
-                    var remaining = _commitHead.WritableBytes;
+                    var remaining = _readTail.WritableBytes;
                     // If there is enough bytes remaining, we don't need to allocate a new segment.
                     if (remaining > 0)
                     {
                         segment = _readHead;
-                        _commitHead = segment;
+                        _readTail = segment;
                         return;
                     }
                 }
@@ -331,7 +331,7 @@ namespace Microsoft.AspNetCore.Http
                     _readHead.SetNext(segment);
                 }
 
-                _commitHead = segment;
+                _readTail = segment;
             }
         }
 
