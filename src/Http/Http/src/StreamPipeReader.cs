@@ -31,7 +31,7 @@ namespace Microsoft.AspNetCore.Http
         private int _readIndex;
 
         private BufferSegment _readTail;
-        private long _consumedLength;
+        private long _bufferedBytes;
         private bool _examinedEverything;
 
         private CancellationTokenSource InternalTokenSource
@@ -93,9 +93,9 @@ namespace Microsoft.AspNetCore.Http
 
             var consumedBytes = new ReadOnlySequence<byte>(returnStart, _readIndex, consumedSegment, consumedIndex).Length;
 
-            _consumedLength -= consumedBytes;
+            _bufferedBytes -= consumedBytes;
 
-            Debug.Assert(_consumedLength >= 0);
+            Debug.Assert(_bufferedBytes >= 0);
 
             _examinedEverything = false;
 
@@ -114,7 +114,7 @@ namespace Microsoft.AspNetCore.Http
             //  We are allowed to remove an extra segment. by setting returnEnd to be the next block.
             // 3. We are in the middle of a segment.
             //  Move _readHead and _readIndex to consumedSegment and index
-            if (_consumedLength == 0)
+            if (_bufferedBytes == 0)
             {
                 _readTail.SetMemory(_readTail.MemoryOwner);
                 _readHead = _readTail;
@@ -213,7 +213,7 @@ namespace Microsoft.AspNetCore.Http
 #error Target frameworks need to be updated.
 #endif
                     _readTail.End += length;
-                    _consumedLength += length;
+                    _bufferedBytes += length;
                 }
                 catch (OperationCanceledException)
                 {
@@ -251,7 +251,7 @@ namespace Microsoft.AspNetCore.Http
         private bool TryReadInternal(CancellationTokenSource source, out ReadResult result)
         {
             var isCancellationRequested = source.IsCancellationRequested;
-            if (isCancellationRequested || _consumedLength > 0 && !_examinedEverything)
+            if (isCancellationRequested || _bufferedBytes > 0 && !_examinedEverything)
             {
                 // If TryRead/ReadAsync are called and cancellation is requested, we need to make sure memory is allocated for the ReadResult,
                 // otherwise if someone calls advance afterward on the ReadResult, it will throw.
