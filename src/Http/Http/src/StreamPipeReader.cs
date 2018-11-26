@@ -104,7 +104,7 @@ namespace Microsoft.AspNetCore.Http
                 // If we examined everything, we force ReadAsync to actually read from the underlying stream
                 // instead of returning a ReadResult from TryRead.
                 // TODO do we care about covering if examinedSegment past end of sequence.
-                _examinedEverything = _readTail != null ? examinedIndex == _readTail.End - _readTail.Start : examinedIndex == 0;
+                _examinedEverything = examinedIndex == _readTail.End - _readTail.Start;
             }
 
             // Three cases here:

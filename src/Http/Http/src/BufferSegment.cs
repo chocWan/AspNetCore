@@ -34,7 +34,6 @@ namespace System.IO.Pipelines
 
                 _end = value;
                 Memory = AvailableMemory.Slice(Start, _end - Start);
-                //AvailableMemory = AvailableMemory.Slice(value);
             }
         }
 
