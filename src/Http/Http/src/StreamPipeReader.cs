@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
@@ -78,21 +79,8 @@ namespace Microsoft.AspNetCore.Http
             }
             // Creating consumedSequence will throw an ArgumentOutOfRangeException if consumed/examined are invalid.
             // We want the same check for netstandard too.
-            // TODO this is significantly slower than just calling AdvanceTo().
-            var consumedSequence = GetCurrentReadOnlySequence().Slice(consumed, examined);
-
-#if NETCOREAPP2_2
-            if (!SequenceMarshal.TryGetReadOnlySequenceSegment(consumedSequence, out var consumedSegment, out var consumedIndex, out var examinedSegment, out var examinedIndex))
-            {
-                return;
-            }
-
-            AdvanceTo((BufferSegment)consumedSegment, consumedIndex, (BufferSegment)examinedSegment, examinedIndex);
-#elif NETSTANDARD2_0
+            //var consumedSequence = GetCurrentReadOnlySequence().Slice(consumed, examined);
             AdvanceTo((BufferSegment)consumed.GetObject(), consumed.GetInteger(), (BufferSegment)examined.GetObject(), examined.GetInteger());
-#else
-#error Target frameworks need to be updated.
-#endif
         }
 
         private void AdvanceTo(BufferSegment consumedSegment, int consumedIndex, BufferSegment examinedSegment, int examinedIndex)
@@ -108,6 +96,8 @@ namespace Microsoft.AspNetCore.Http
             var consumedBytes = new ReadOnlySequence<byte>(returnStart, _readIndex, consumedSegment, consumedIndex).Length;
 
             _consumedLength -= consumedBytes;
+
+            Debug.Assert(_consumedLength >= 0);
 
             _examinedEverything = false;
 
