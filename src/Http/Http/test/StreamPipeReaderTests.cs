@@ -417,6 +417,41 @@ namespace Microsoft.AspNetCore.Http.Tests
             Reader.AdvanceTo(result.Buffer.End);
         }
 
+        [Fact]
+        public async Task ConsumePartialBufferWorks()
+        {
+            Reader = new StreamPipeReader(MemoryStream, 16, new TestMemoryPool());
+            Write(Encoding.ASCII.GetBytes(new string('a', 8)));
+            var readResult = await Reader.ReadAsync();
+            Reader.AdvanceTo(readResult.Buffer.GetPosition(4), readResult.Buffer.End);
+            MemoryStream.Position = 0;
+
+            readResult = await Reader.ReadAsync();
+            var resultString = Encoding.ASCII.GetString(readResult.Buffer.ToArray());
+            Assert.Equal(new string('a', 12), resultString);
+            Reader.AdvanceTo(readResult.Buffer.End);
+        }
+
+        [Fact]
+        public async Task ConsumePartialBufferBetweenMultipleSegmentsWorks()
+        {
+            Reader = new StreamPipeReader(MemoryStream, 16, new TestMemoryPool());
+            Write(Encoding.ASCII.GetBytes(new string('a', 8)));
+            var readResult = await Reader.ReadAsync();
+            Reader.AdvanceTo(readResult.Buffer.GetPosition(4), readResult.Buffer.End);
+            MemoryStream.Position = 0;
+
+            readResult = await Reader.ReadAsync();
+            Reader.AdvanceTo(readResult.Buffer.Start, readResult.Buffer.End);
+            MemoryStream.Position = 0;
+
+            readResult = await Reader.ReadAsync();
+            var resultString = Encoding.ASCII.GetString(readResult.Buffer.ToArray());
+            Assert.Equal(new string('a', 20), resultString);
+
+            Reader.AdvanceTo(readResult.Buffer.End);
+        }
+
         private bool IsTaskWithResult<T>(ValueTask<T> task)
         {
             return task == new ValueTask<T>(task.Result);

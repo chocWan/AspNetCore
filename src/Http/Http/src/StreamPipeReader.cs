@@ -201,14 +201,14 @@ namespace Microsoft.AspNetCore.Http
                 {
                     AllocateReadTail();
 #if NETCOREAPP2_2
-                    var length = await _readingStream.ReadAsync(_readTail.AvailableMemory, tokenSource.Token);
+                    var length = await _readingStream.ReadAsync(_readTail.AvailableMemory.Slice(_readTail.End), tokenSource.Token);
 #elif NETSTANDARD2_0
-                    if (!MemoryMarshal.TryGetArray<byte>(_readTail.AvailableMemory, out var arraySegment))
+                    if (!MemoryMarshal.TryGetArray<byte>(_readTail.AvailableMemory.Slice(_readTail.End), out var arraySegment))
                     {
                         ThrowHelper.ThrowInvalidCastException_NoArrayFromMemory();
                     }
 
-                    var length = await _readingStream.ReadAsync(arraySegment.Array, 0, arraySegment.Count, tokenSource.Token);
+                    var length = await _readingStream.ReadAsync(arraySegment.Array, arraySegment.Offset, arraySegment.Count, tokenSource.Token);
 #else
 #error Target frameworks need to be updated.
 #endif
