@@ -280,54 +280,23 @@ namespace Microsoft.AspNetCore.Http
 
         private void AllocateReadTail()
         {
-            BufferSegment segment;
-            if (_readTail != null)
+            if (_readHead == null)
             {
-                segment = _readTail;
-                var bytesLeftInBuffer = segment.WritableBytes;
-                // Check if we need create a new segment (if we need more data to read)
-                if (bytesLeftInBuffer == 0)
-                {
-                    var nextSegment = CreateSegmentUnsynchronized();
-                    nextSegment.SetMemory(_pool.Rent(GetSegmentSize()));
-                    segment.SetNext(nextSegment);
-                    _readTail = nextSegment;
-                }
+                Debug.Assert(_readTail == null);
+                _readHead = CreateSegmentUnsynchronized();
+                _readHead.SetMemory(_pool.Rent(GetSegmentSize()));
+                _readTail = _readHead;
             }
-            else
+            else if (_readTail.WritableBytes == 0)
             {
-                if (_readHead != null)
-                {
-                    var remaining = _readTail.WritableBytes;
-                    // If there is enough bytes remaining, we don't need to allocate a new segment.
-                    if (remaining > 0)
-                    {
-                        segment = _readHead;
-                        _readTail = segment;
-                        return;
-                    }
-                }
-
-                segment = CreateSegmentUnsynchronized();
-                segment.SetMemory(_pool.Rent(GetSegmentSize()));
-                if (_readHead == null)
-                {
-                    _readHead = segment;
-                }
-                else if (segment != _readHead && _readHead.Next == null)
-                {
-                    _readHead.SetNext(segment);
-                }
-
-                _readTail = segment;
+                var nextSegment = CreateSegmentUnsynchronized();
+                nextSegment.SetMemory(_pool.Rent(GetSegmentSize()));
+                _readTail.SetNext(nextSegment);
+                _readTail = nextSegment;
             }
         }
 
-        private int GetSegmentSize()
-        {
-            var adjustedToMaximumSize = Math.Min(_pool.MaxBufferSize, _minimumSegmentSize);
-            return adjustedToMaximumSize;
-        }
+        private int GetSegmentSize() => Math.Min(_pool.MaxBufferSize, _minimumSegmentSize);
 
         private BufferSegment CreateSegmentUnsynchronized()
         {
