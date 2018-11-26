@@ -77,9 +77,7 @@ namespace Microsoft.AspNetCore.Http
             {
                 ThrowHelper.ThrowInvalidOperationException_NoDataRead();
             }
-            // Creating consumedSequence will throw an ArgumentOutOfRangeException if consumed/examined are invalid.
-            // We want the same check for netstandard too.
-            //var consumedSequence = GetCurrentReadOnlySequence().Slice(consumed, examined);
+
             AdvanceTo((BufferSegment)consumed.GetObject(), consumed.GetInteger(), (BufferSegment)examined.GetObject(), examined.GetInteger());
         }
 
@@ -288,7 +286,7 @@ namespace Microsoft.AspNetCore.Http
                 segment = _readTail;
                 var bytesLeftInBuffer = segment.WritableBytes;
                 // Check if we need create a new segment (if we need more data to read)
-                if (bytesLeftInBuffer == 0 || segment.ReadOnly)
+                if (bytesLeftInBuffer == 0)
                 {
                     var nextSegment = CreateSegmentUnsynchronized();
                     nextSegment.SetMemory(_pool.Rent(GetSegmentSize()));
@@ -298,7 +296,7 @@ namespace Microsoft.AspNetCore.Http
             }
             else
             {
-                if (_readHead != null && !_readTail.ReadOnly)
+                if (_readHead != null)
                 {
                     var remaining = _readTail.WritableBytes;
                     // If there is enough bytes remaining, we don't need to allocate a new segment.
