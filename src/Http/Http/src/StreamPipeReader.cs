@@ -108,7 +108,7 @@ namespace Microsoft.AspNetCore.Http
             }
 
             // Three cases here:
-            // 1. All data is consumed. If so, we clear _readHead/_commitHead and _readIndex/
+            // 1. All data is consumed. If so, we clear _readHead/_readTail and _readIndex/
             //  returnEnd is set to null to free all memory between returnStart/End
             // 2. A segment is entirely consumed but there is still more data in nextSegments
             //  We are allowed to remove an extra segment. by setting returnEnd to be the next block.
@@ -199,7 +199,7 @@ namespace Microsoft.AspNetCore.Http
                 var isCanceled = false;
                 try
                 {
-                    AllocateCommitHead();
+                    AllocateReadTail();
 #if NETCOREAPP2_2
                     var length = await _readingStream.ReadAsync(_readTail.AvailableMemory, tokenSource.Token);
 #elif NETSTANDARD2_0
@@ -257,7 +257,7 @@ namespace Microsoft.AspNetCore.Http
                 // otherwise if someone calls advance afterward on the ReadResult, it will throw.
                 if (isCancellationRequested)
                 {
-                    AllocateCommitHead();
+                    AllocateReadTail();
 
                     ClearOutCancellation();
                 }
@@ -278,7 +278,7 @@ namespace Microsoft.AspNetCore.Http
             return new ReadOnlySequence<byte>(_readHead, _readIndex, _readTail, _readTail.End - _readTail.Start);
         }
 
-        private void AllocateCommitHead()
+        private void AllocateReadTail()
         {
             BufferSegment segment;
             if (_readTail != null)
