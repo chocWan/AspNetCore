@@ -212,6 +212,8 @@ namespace Microsoft.AspNetCore.Http
 #else
 #error Target frameworks need to be updated.
 #endif
+                    Debug.Assert(length + _readTail.End <= _readTail.AvailableMemory.Length);
+
                     _readTail.End += length;
                     _bufferedBytes += length;
                 }
