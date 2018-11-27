@@ -88,6 +88,22 @@ namespace Microsoft.AspNetCore.Http.Tests
         }
 
         [Fact]
+        public async Task ReadWithAdvance3()
+        {
+            Reader = new StreamPipeReader(MemoryStream, 16, new TestMemoryPool());
+            Write(new byte[128]);
+            var readResult = await Reader.ReadAsync();
+            Assert.Equal(16, readResult.Buffer.Length);
+            Assert.True(readResult.Buffer.IsSingleSegment);
+
+            Reader.AdvanceTo(readResult.Buffer.End);
+
+            readResult = await Reader.ReadAsync();
+            Assert.Equal(16, readResult.Buffer.Length);
+            Assert.True(readResult.Buffer.IsSingleSegment);
+        }
+
+        [Fact]
         public async Task ReadConsumePartialReadAsyncCallsTryRead()
         {
             Write(Encoding.ASCII.GetBytes(new string('a', 10000)));
