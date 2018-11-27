@@ -173,7 +173,7 @@ namespace Microsoft.AspNetCore.Http
         /// <inheritdoc />
         public override void OnWriterCompleted(Action<Exception, object> callback, object state)
         {
-            throw new NotSupportedException();
+            throw new NotSupportedException("OnWriterCompleted is not supported");
         }
 
         /// <inheritdoc />
