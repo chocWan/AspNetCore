@@ -179,6 +179,7 @@ namespace Microsoft.AspNetCore.Http
         /// <inheritdoc />
         public override async ValueTask<ReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
+            // TODO ReadyAsync needs to throw if there are overlapping reads.
             ThrowIfCompleted();
 
             // PERF: store InternalTokenSource locally to avoid querying it twice (which acquires a lock)
@@ -205,7 +206,8 @@ namespace Microsoft.AspNetCore.Http
 #elif NETSTANDARD2_0
                     if (!MemoryMarshal.TryGetArray<byte>(_readTail.AvailableMemory.Slice(_readTail.End), out var arraySegment))
                     {
-                        ThrowHelper.ThrowInvalidCastException_NoArrayFromMemory();
+                        CreateNewTailSegment();
+                        MemoryMarshal.TryGetArray(_readTail.AvailableMemory.Slice(_readTail.End), out arraySegment);
                     }
 
                     var length = await _readingStream.ReadAsync(arraySegment.Array, arraySegment.Offset, arraySegment.Count, tokenSource.Token);
@@ -291,11 +293,16 @@ namespace Microsoft.AspNetCore.Http
             }
             else if (_readTail.WritableBytes == 0)
             {
-                var nextSegment = CreateSegmentUnsynchronized();
-                nextSegment.SetMemory(_pool.Rent(GetSegmentSize()));
-                _readTail.SetNext(nextSegment);
-                _readTail = nextSegment;
+                CreateNewTailSegment();
             }
+        }
+
+        private void CreateNewTailSegment()
+        {
+            var nextSegment = CreateSegmentUnsynchronized();
+            nextSegment.SetMemory(_pool.Rent(GetSegmentSize()));
+            _readTail.SetNext(nextSegment);
+            _readTail = nextSegment;
         }
 
         private int GetSegmentSize() => Math.Min(_pool.MaxBufferSize, _minimumSegmentSize);

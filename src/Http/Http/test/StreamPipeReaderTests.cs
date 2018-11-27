@@ -56,7 +56,7 @@ namespace Microsoft.AspNetCore.Http.Tests
         }
 
         [Fact]
-        public async Task ReadWithAdvance()
+        public async Task ReadWithAdvanceWorks()
         {
             Write(Encoding.ASCII.GetBytes(new string('a', 10000)));
 
@@ -72,23 +72,7 @@ namespace Microsoft.AspNetCore.Http.Tests
         }
 
         [Fact]
-        public async Task ReadWithAdvance2()
-        {
-            Write(Encoding.ASCII.GetBytes(new string('a', 10000)));
-
-            var readResult = await Reader.ReadAsync();
-            Assert.Equal(MinimumSegmentSize, readResult.Buffer.Length);
-            Assert.True(readResult.Buffer.IsSingleSegment);
-
-            Reader.AdvanceTo(readResult.Buffer.End);
-
-            readResult = await Reader.ReadAsync();
-            Assert.Equal(MinimumSegmentSize, readResult.Buffer.Length);
-            Assert.True(readResult.Buffer.IsSingleSegment);
-        }
-
-        [Fact]
-        public async Task ReadWithAdvance3()
+        public async Task ReadWithAdvanceSmallSegments()
         {
             Reader = new StreamPipeReader(MemoryStream, 16, new TestMemoryPool());
             Write(new byte[128]);
