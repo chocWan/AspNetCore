@@ -56,9 +56,9 @@ namespace Microsoft.AspNetCore.Http.Tests
         }
 
         [Fact]
-        public async Task ReadWithAdvanceWorks()
+        public async Task ReadWithAdvanceDuplicate()
         {
-            Write(Encoding.ASCII.GetBytes(new string('a', 10000)));
+            Write(new byte[10000]);
 
             var readResult = await Reader.ReadAsync();
             Assert.Equal(MinimumSegmentSize, readResult.Buffer.Length);

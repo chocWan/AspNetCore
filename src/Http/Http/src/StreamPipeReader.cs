@@ -206,8 +206,7 @@ namespace Microsoft.AspNetCore.Http
 #elif NETSTANDARD2_0
                     if (!MemoryMarshal.TryGetArray<byte>(_readTail.AvailableMemory.Slice(_readTail.End), out var arraySegment))
                     {
-                        CreateNewTailSegment();
-                        MemoryMarshal.TryGetArray(_readTail.AvailableMemory.Slice(_readTail.End), out arraySegment);
+                        ThrowHelper.CreateInvalidOperationException_NoArrayFromMemory();
                     }
 
                     var length = await _readingStream.ReadAsync(arraySegment.Array, arraySegment.Offset, arraySegment.Count, tokenSource.Token);

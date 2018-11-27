@@ -12,9 +12,9 @@ namespace Microsoft.AspNetCore.Http
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static Exception CreateInvalidOperationException_NoReadingAllowed() => new InvalidOperationException("Reading is not allowed after reader was completed.");
 
-        public static void ThrowInvalidCastException_NoArrayFromMemory() => throw CreateInvalidCastException_NoArrayFromMemory();
+        public static void ThrowInvalidOperationException_NoArrayFromMemory() => throw CreateInvalidOperationException_NoArrayFromMemory();
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static Exception CreateInvalidCastException_NoArrayFromMemory() => new InvalidOperationException("Could not get byte[] from Memory.");
+        public static Exception CreateInvalidOperationException_NoArrayFromMemory() => new InvalidOperationException("Could not get byte[] from Memory.");
 
         public static void ThrowInvalidOperationException_NoDataRead() => throw CreateInvalidOperationException_NoDataRead();
         [MethodImpl(MethodImplOptions.NoInlining)]
